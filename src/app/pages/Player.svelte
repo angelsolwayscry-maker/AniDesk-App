@@ -384,48 +384,72 @@
             currentAnime4kInstance = null;
         }
 
-        // Синхронизируем физический размер канваса с его CSS-размером (с учётом DPR)
-        const dpr = window.devicePixelRatio || 1;
-        const displayWidth = Math.round(canvas.clientWidth * dpr);
-        const displayHeight = Math.round(canvas.clientHeight * dpr);
-        if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-            canvas.width = displayWidth;
-            canvas.height = displayHeight;
+        // ——— FIX #2: CSS-хинты композитора ———
+        // Форсируем отдельный GPU-слой для канваса, чтобы Chromium
+        // не троттлил rAF из-за перекрытия GUI-слоем (rAF throttle fix)
+        canvas.style.willChange = 'transform';
+        canvas.style.transform = 'translateZ(0)';
+        canvas.style.backfaceVisibility = 'hidden';
+
+        // ——— FIX #3: запрашиваем WebGPU-контекст с high-performance адаптером
+        // на AMD Vega это гарантирует использование дискретной GPU, а не интегрированной
+        if (navigator.gpu) {
+            try {
+                const gpuCtx = canvas.getContext('webgpu');
+                if (gpuCtx) {
+                    // Пред-конфигурируем канвас с высокопроизводительным адаптером
+                    const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+                    if (adapter) {
+                        const device = await adapter.requestDevice();
+                        gpuCtx.configure({
+                            device,
+                            format: navigator.gpu.getPreferredCanvasFormat(),
+                            alphaMode: 'opaque', // отключаем альфа-композитинг — экономия GPU
+                        });
+                    }
+                }
+            } catch(e) {
+                // если контекст уже захвачен библиотекой — не блокируемся
+            }
         }
 
-        const nativeDimensions = {
-            width: video.videoWidth,
-            height: video.videoHeight,
-        };
-        const targetDimensions = {
-            width: canvas.width,
-            height: canvas.height,
-        };
+        // ——— FIX #4: размер канваса = размер видеопотока (не DPR-экран)
+        // Компьютерные шейдеры работают в пространстве пикселей видео, не экрана!
+        // Отрисованный результат потом CSS масштабирует до размера окна автоматически
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        if (canvas.width !== videoWidth || canvas.height !== videoHeight) {
+            canvas.width = videoWidth;
+            canvas.height = videoHeight;
+        }
+
+        // ——— FIX #1: замораживаем значения реактивных переменных в плоские JS-переменные
+        // Это изолирует цикл рендера от реактивности Svelte —
+        // переменные читаются один раз при создании пайплайна, а не на каждый кадр rAF
+        const _upscaleEnabled = upscaleEnabled;
+        const _mode = upscaleSettings.mode;
+        const _customStages = upscaleSettings.customPreset?.stages ? [...upscaleSettings.customPreset.stages] : [];
+
+        const nativeDimensions = { width: videoWidth, height: videoHeight };
+        const targetDimensions = { width: videoWidth, height: videoHeight };
 
         const instance = await render({
             video,
             canvas,
             pipelineBuilder: (device, inputTexture) => {
-                if (!upscaleEnabled) {
+                if (!_upscaleEnabled) {
                     return [new Original({ device, inputTexture, nativeDimensions, targetDimensions })];
                 }
 
-                // Пользовательский пресет (mode 20) — многоэтапный пайплайн из нескольких шейдеров
-                if (upscaleSettings.mode === 20 && upscaleSettings.customPreset?.stages?.length > 0) {
-                    return upscaleSettings.customPreset.stages.map(stageMode =>
+                // Пользовательский пресет (mode 20) — многоэтапный пайплайн
+                if (_mode === 20 && _customStages.length > 0) {
+                    return _customStages.map(stageMode =>
                         new upscaleModeMap[stageMode]({ device, inputTexture, nativeDimensions, targetDimensions })
                     );
                 }
 
-                // Стандартный режим — один шейдер
-                return [
-                    new upscaleModeMap[upscaleSettings.mode]({
-                        device,
-                        inputTexture,
-                        nativeDimensions,
-                        targetDimensions,
-                    }),
-                ];
+                // Стандартный одиночный шейдер
+                return [new upscaleModeMap[_mode]({ device, inputTexture, nativeDimensions, targetDimensions })];
             },
         });
 
@@ -433,7 +457,6 @@
         currentAnime4kInstance = instance;
 
         // Следим за изменением реального размера канваса через ResizeObserver
-        // (точнее и экономнее чем window resize)
         if (canvasResizeObserver) {
             canvasResizeObserver.disconnect();
         }
