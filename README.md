@@ -1,6 +1,6 @@
 # AniDesk (Custom Build)
 
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-0/74_Clean-success?logo=virustotal)](https://www.virustotal.com/gui/file/d32574d85a82f2a39fc9a88ca194cd05381f3fabc5d8f335e7669a72ea2c499c/detection)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-1/70_Safe_(False_Positive)-success?logo=virustotal)](https://www.virustotal.com/gui/file/d32574d85a82f2a39fc9a88ca194cd05381f3fabc5d8f335e7669a72ea2c499c/detection)
 
 Неофициальный и улучшенный десктопный клиент для просмотра аниме, основанный на AniDesk который использует Anixart API. 
 
