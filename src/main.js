@@ -43,7 +43,7 @@ async function cleanupCache() {
     const now = Date.now();
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
-    await Promise.all(files.map(async (file) => {
+    for (const file of files) {
       try {
         const filePath = path.join(ImageCachePath, file);
         const stats = await fs.promises.stat(filePath);
@@ -53,7 +53,7 @@ async function cleanupCache() {
       } catch (fileErr) {
         console.error(`Cache cleanup: skip ${file}:`, fileErr.message);
       }
-    }));
+    }
   } catch (e) {
     console.error("Cache cleanup error:", e);
   }
@@ -70,7 +70,14 @@ discordRpcClient.on('ready', () => {
   console.log("[RPC] Hooked!");
 });
 
-const SettingsFirst = fs.existsSync(SettingsPath) ? JSON.parse(fs.readFileSync(SettingsPath)) : DefaultSettings;
+let SettingsFirst = DefaultSettings;
+try {
+  if (fs.existsSync(SettingsPath)) {
+    SettingsFirst = JSON.parse(fs.readFileSync(SettingsPath));
+  }
+} catch (e) {
+  console.error("Failed to parse settings.json, using defaults:", e.message);
+}
 
 if (SettingsFirst.AutoUpdate) {
   autoUpdater.on("checking-for-update", () => {
@@ -209,13 +216,19 @@ function createWindow() {
     }
   );
 
+  const isVideoDomain = (host) => {
+    return host.includes('kodik') || host.includes('sibnet.ru');
+  };
+
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
     (details, callback) => {
       const { url, requestHeaders } = details;
       const host = new URL(url).host;
 
       UpsertKeyValue(requestHeaders, 'Referer', null);
-      UpsertKeyValue(requestHeaders, 'Access-Control-Allow-Origin', ['*']);
+      if (isVideoDomain(host)) {
+        UpsertKeyValue(requestHeaders, 'Access-Control-Allow-Origin', ['*']);
+      }
 
       if (host == "video.sibnet.ru") {
         UpsertKeyValue(requestHeaders, 'Referer', url);
@@ -232,9 +245,13 @@ function createWindow() {
   );
 
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    const { responseHeaders, resourceType } = details;
-    UpsertKeyValue(responseHeaders, 'Access-Control-Allow-Origin', ['*']);
-    UpsertKeyValue(responseHeaders, 'Access-Control-Allow-Headers', ['*']);
+    const { url, responseHeaders, resourceType } = details;
+    const host = new URL(url).host;
+    
+    if (isVideoDomain(host)) {
+      UpsertKeyValue(responseHeaders, 'Access-Control-Allow-Origin', ['*']);
+      UpsertKeyValue(responseHeaders, 'Access-Control-Allow-Headers', ['*']);
+    }
 
     if (resourceType === 'image') {
       UpsertKeyValue(responseHeaders, 'Cache-Control', ['public, max-age=31536000, immutable']);
@@ -368,17 +385,17 @@ app.on('activate', function () {
   if (mainWindow === null) createWindow()
 });
 
-app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  event.preventDefault();
-  callback(true);
-})
+// SSL check bypass removed to prevent MitM vulnerabilities
 
 ipcMain.handle("analytics:trackEvent", (_, eventName, props) => {
   trackEvent(eventName, props);
 })
-ipcMain.handle("settings:get", (_, key) => {
+ipcMain.handle("settings:get", async (_, key) => {
   try {
-    const settings = fs.existsSync(SettingsPath) ? JSON.parse(fs.readFileSync(SettingsPath, 'utf8')) : DefaultSettings;
+    let settings = DefaultSettings;
+    if (fs.existsSync(SettingsPath)) {
+      settings = JSON.parse(await fs.promises.readFile(SettingsPath, 'utf8'));
+    }
     return settings?.[key] ?? null;
   } catch (e) {
     console.error('settings:get error:', e.message);
@@ -386,19 +403,25 @@ ipcMain.handle("settings:get", (_, key) => {
   }
 })
 
-ipcMain.handle("settings:set", (_, key, value) => {
+ipcMain.handle("settings:set", async (_, key, value) => {
   try {
-    const settings = fs.existsSync(SettingsPath) ? JSON.parse(fs.readFileSync(SettingsPath, 'utf8')) : { ...DefaultSettings };
+    let settings = { ...DefaultSettings };
+    if (fs.existsSync(SettingsPath)) {
+      settings = JSON.parse(await fs.promises.readFile(SettingsPath, 'utf8'));
+    }
     settings[key] = value;
-    fs.writeFileSync(SettingsPath, JSON.stringify(settings));
+    await fs.promises.writeFile(SettingsPath, JSON.stringify(settings));
   } catch (e) {
     console.error('settings:set error:', e.message);
   }
 })
 
-ipcMain.handle("settings:getAll", (_) => {
+ipcMain.handle("settings:getAll", async (_) => {
   try {
-    return fs.existsSync(SettingsPath) ? JSON.parse(fs.readFileSync(SettingsPath, 'utf8')) : { ...DefaultSettings };
+    if (fs.existsSync(SettingsPath)) {
+      return JSON.parse(await fs.promises.readFile(SettingsPath, 'utf8'));
+    }
+    return { ...DefaultSettings };
   } catch (e) {
     console.error('settings:getAll error:', e.message);
     return { ...DefaultSettings };
@@ -456,7 +479,16 @@ ipcMain.handle("sibnet:parse", async (_, link) => {
 })
 
 ipcMain.handle("winApi:openLink", (_, link) => {
-  o.open(link);
+  try {
+    const parsed = new URL(link);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      o.open(link);
+    } else {
+      console.error('winApi:openLink blocked non-http/https URL:', link);
+    }
+  } catch (e) {
+    console.error('winApi:openLink invalid URL:', link);
+  }
 });
 
 ipcMain.handle("discordRPC:setActivity", (_, activity) => {
