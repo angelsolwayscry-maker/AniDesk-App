@@ -1,6 +1,6 @@
 {
   "name": "anidesk",
-  "version": "0.0.1-beta.7",
+  "version": "2.1.0",
   "description": "Unofficial desktop client of Anixart",
   "main": "./src/main.js",
   "scripts": {
