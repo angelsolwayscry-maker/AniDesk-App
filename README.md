@@ -2,6 +2,8 @@
 
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-1/70_Safe_(False_Positive)-success?logo=virustotal)](https://www.virustotal.com/gui/file/d32574d85a82f2a39fc9a88ca194cd05381f3fabc5d8f335e7669a72ea2c499c/detection)
 
+![Интерфейс AniDesk](public/assets/images/screenshot.png)
+
 Неофициальный и улучшенный десктопный клиент для просмотра аниме, основанный на AniDesk который использует Anixart API. 
 
 Эта версия содержит эксклюзивные визуальные улучшения, современные контурные иконки, исправленную геометрию интерфейса, а также **встроенный обход блокировок провайдера** (через быстрый CDN-прокси), благодаря которому обложки и картинки загружаются мгновенно и без ошибок.
