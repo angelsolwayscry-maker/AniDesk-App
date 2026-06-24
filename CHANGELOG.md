@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-06-24 12:48]
+- **chore:** update repository links after rename to re-AniDesk -> [README.md](file:///C:/Users/Angel/.gemini/antigravity/brain/a05dc538-153c-4e92-abc2-f743841af6ec/scratch/repo/README.md), [Settings.svelte](file:///C:/Users/Angel/.gemini/antigravity/brain/a05dc538-153c-4e92-abc2-f743841af6ec/scratch/repo/src/app/pages/Settings.svelte)
+
 ## [2026-06-24 12:36]
 - **docs:** add application preview screenshot -> [README.md](file:///C:/Users/Angel/.gemini/antigravity/brain/a05dc538-153c-4e92-abc2-f743841af6ec/scratch/repo/README.md), public/assets/images/screenshot.png
 

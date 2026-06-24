@@ -48,7 +48,7 @@
 
 Скачать готовую к использованию программу можно прямо из этого репозитория:
 
-1. Перейдите в раздел **[Releases (Релизы)](https://github.com/Ar3sSs-dev/AniDesk-App/releases)** справа.
+1. Перейдите в раздел **[Releases (Релизы)](https://github.com/Ar3sSs-dev/re-AniDesk/releases)** справа.
 2. Найдите последнюю опубликованную версию.
 3. Скачайте архив с программой (или файл-установщик) из раздела `Assets`.
 4. Распакуйте в удобное место и запустите `AniDesk.exe`!
@@ -62,5 +62,5 @@
 Эта команда автоматически скачает последнюю версию установщика во временную папку и запустит его. Для этого откройте PowerShell (Пуск -> PowerShell) и скопируйте туда следующий код:
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/Ar3sSs-dev/AniDesk-App/releases/download/v2.1.0/anidesk-2.1.0-win32.exe" -OutFile "$env:TEMP\anidesk_setup.exe"; Start-Process "$env:TEMP\anidesk_setup.exe"
+Invoke-WebRequest -Uri "https://github.com/Ar3sSs-dev/re-AniDesk/releases/download/v2.1.0/anidesk-2.1.0-win32.exe" -OutFile "$env:TEMP\anidesk_setup.exe"; Start-Process "$env:TEMP\anidesk_setup.exe"
 ```
